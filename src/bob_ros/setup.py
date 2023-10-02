@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'bob = bob_ros.bob_bot:main'
+            'bob = bob_ros.bob_bot:main',
+            'craft = bob_ros.craft_item:main'
         ],
     },
 )

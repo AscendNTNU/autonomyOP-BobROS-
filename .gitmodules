@@ -1,0 +1,3 @@
+[submodule "src/mineros_interface"]
+	path = src/mineros_interface
+	url = git@github.com:AscendNTNU/mineros_interfaces.git
