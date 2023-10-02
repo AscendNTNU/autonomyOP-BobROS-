@@ -1,11 +1,11 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
-package_name = 'rclpy_example'
+package_name = 'bob_ros'
 
 setup(
     name=package_name,
     version='0.0.0',
-    packages=[package_name],
+    packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -13,15 +13,14 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='root',
-    maintainer_email='oyvind@t-stubhaug.com',
+    maintainer='philipsh',
+    maintainer_email='philipsh@todo.todo',
     description='TODO: Package description',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'subscriber = rclpy_example.minimal_subscriber:main',
-            'publisher = rclpy_example.minimal_publisher:main'
+            'bob = bob_ros.bob_bot:main'
         ],
     },
 )
