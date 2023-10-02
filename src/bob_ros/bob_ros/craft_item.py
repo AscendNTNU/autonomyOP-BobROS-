@@ -50,9 +50,8 @@ class CrafterNode(Node):
             10
         )
 ############################################################################################################################################################################################################
-        #Furnace code
-        self.test_crafting()
-        self.get_logger().info("TRY")
+        # Main kode
+        #self.test_crafting() # Denne koden gjør ingenting viktig
         furnace = self.get_furnace()
         self.get_logger().info("Funnet furnace")
         furnace_info = self.check_furnace(furnace)
@@ -71,6 +70,8 @@ class CrafterNode(Node):
             return furnace_array[0]
         else: # 
             return Pose()
+
+    # Det er denne funksjonen som skaper problemer
     def check_furnace(self, furnace: Pose) -> Furnace:
         furnace_request = FurnaceInfo.Request()
         furnace_request.block_pose = furnace
@@ -78,6 +79,7 @@ class CrafterNode(Node):
             self.get_logger().info('Waiting for service (FurnaceInfo)')
         self.get_logger().info("Funnet service")
         future = self.furnace_client.call_async(furnace_request)
+        # Det er i dette spin statementet koden henger seg
         rclpy.spin_until_future_complete(self,future)
         self.get_logger().info("Er det en suksess?")
         if future.result().success:
