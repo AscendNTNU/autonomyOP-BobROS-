@@ -1,0 +1,10 @@
+---
+Checks: '
+cppcoreguidelines-*,
+modernize-*,
+    -modernize-modernize-use-trailing-return-type,
+    -modernize-avoid-bind,
+performance-*,
+portability-*,
+readability-*,
+'

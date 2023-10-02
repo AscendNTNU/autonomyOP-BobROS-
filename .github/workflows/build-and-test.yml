@@ -1,0 +1,68 @@
+name: Build and test
+
+on:
+  push:
+  
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  TARGET_PLATFORMS: amd64, arm64
+  TEST_TAG: user/myapp:test
+
+jobs:
+  build-and-test:
+    name: "Build and test Docker image"
+    runs-on: ["self-hosted"]
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1 
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image for amd64
+        if: ${{ contains(env.TARGET_PLATFORMS, 'amd64') }}
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: deploy
+          load: true
+          platforms: amd64
+          tags: ${{ env.TEST_TAG }}
+      - name: Colcon test amd64
+        timeout-minutes: 30
+        if: ${{ contains(env.TARGET_PLATFORMS, 'amd64') }}
+        run: |
+          docker run --rm --platform=amd64 ${{ env.TEST_TAG }} colcon test --return-code-on-test-failure
+
+      - name: Build Docker image for arm64
+        if: ${{ contains(env.TARGET_PLATFORMS, 'arm64') }}
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: deploy
+          load: true
+          platforms: arm64
+          tags: ${{ env.TEST_TAG }}
+      ## Currently, I can't get ROS2 nodes to communicate when emulating arm64 using QEMU, so skipping this test step
+      ## until that problem is solved
+      #- name: Colcon test arm64
+      #  timeout-minutes: 30
+      #  if: ${{ contains(env.TARGET_PLATFORMS, 'arm64') }}
+      #  run: |
+      #    docker run --rm --platform=arm64 ${{ env.TEST_TAG }} colcon test --return-code-on-test-failure

@@ -1,0 +1,35 @@
+{
+    "editor.tabSize": 4,
+    "editor.rulers": [
+        120,
+    ],
+    "editor.defaultFormatter": "xaver.clang-format",
+    "editor.formatOnSave": true,
+
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build",
+        "--clang-tidy",
+    ],
+
+    "[c]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
+    "[cpp]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
+    "yaml.schemas": {
+        "https://json.schemastore.org/github-workflow": "workflows/*.yml",
+    },
+    "files.associations": {
+        "functional": "cpp"
+    },
+    "python.autoComplete.extraPaths": [
+        "/workspaces/mission9_pipeline_2/install/lib/python3.8/site-packages",
+        "/opt/ros/foxy/lib/python3.8/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/workspaces/mission9_pipeline_2/install/lib/python3.8/site-packages",
+        "/opt/ros/foxy/lib/python3.8/site-packages"
+    ],
+    "C_Cpp.intelliSenseEngine": "Disabled"
+}
