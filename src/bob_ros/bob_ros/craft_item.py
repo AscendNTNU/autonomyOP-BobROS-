@@ -7,7 +7,7 @@ from geometry_msgs.msg import Pose, PoseStamped
 from std_msgs.msg import String
 import copy
 from mineros_inter.srv import BlockInfo, FindBlocks, Craft, FurnaceInfo, Inventory, PlaceBlock, BotPos, FurnaceUpdate
-from mineros_inter.msg import Item, Furnace
+from mineros_inter.msg import Item, Furnace, BlockPose
 from time import sleep
 import pprint
 
@@ -94,11 +94,7 @@ class CrafterNode(Node):
         )
 ############################################################################################################################################################################################################
         # Furnace code
-        item_count = 3
-        self.get_logger().info(f"{self.optimize_fuel(3)}")
-        suksess = self.use_furnace(self.RIRON_ITEMID, item_count)
-        self.get_logger().error(f"{suksess}")
-
+        self.use_furnace(self.RIRON_ITEMID,3)
 
 ############################################################################################################################################################################################################
 
@@ -135,20 +131,21 @@ class CrafterNode(Node):
             return (false := False)
         
         fuel_plan = list(self.optimize_fuel(count).items())
+        self.get_logger().info(f"{fuel_plan}")
         fuel_plan = [fuel for fuel in fuel_plan if fuel[1] > 0]
+        self.get_logger().info(f"{fuel_plan}")
         get_fuel_wait_time = lambda fuel,count: self.fuel_hierarchy[fuel] * count * self.FURNACE_SPEED 
 
         self.refill_furnace(furnace_pose, item_id, count)
-        sleep_buffer = 0
+        burn_time = count * self.FURNACE_SPEED
         for fuel in fuel_plan:
             self.refuel_furnace(furnace_pose, fuel[0], fuel[1])
-            sleep(sleep_buffer)
-            sleep_count = max(1, fuel[1]-1)
-            sleep_buffer = get_fuel_wait_time(fuel[0],min(1, fuel[1]-1))
-            sleep(get_fuel_wait_time(fuel[0],sleep_count)) 
+            fuel_time = get_fuel_wait_time(fuel[0],fuel[1])
+            sleep_time = min(fuel_time,burn_time)
+            self.get_logger().warn(f"{sleep_time}")
+            sleep(sleep_time) 
+            burn_time -= sleep_time
         return self.get_foutput(furnace_pose)             
-
-
 
     def get_fuel(self) -> float:
         total_fuel = 0
@@ -175,7 +172,8 @@ class CrafterNode(Node):
             if fuel_strength <= remaining_fuel:
                 fuel_to_add = min(
                     (remaining_fuel//fuel_strength), fuel_inventory[fuel])
-                count_dictionary[fuel] += fuel_to_add
+                self.get_logger().warn(f"{fuel_to_add} {fuel}")
+                count_dictionary[fuel] += int(fuel_to_add)
                 remaining_fuel -= fuel_to_add * fuel_strength
         if remaining_fuel <= 0:
             return count_dictionary
@@ -186,7 +184,7 @@ class CrafterNode(Node):
                     fuel_strength = self.fuel_hierarchy[fuel]
                     fuel_to_add = min(
                         math.ceil((remaining_fuel/fuel_strength)), fuel_inventory[fuel])
-                    count_dictionary[fuel] += fuel_to_add
+                    count_dictionary[fuel] += int(fuel_to_add)
                     remaining_fuel -= fuel_to_add * fuel_strength
                     if remaining_fuel <= 0:
                         break
@@ -201,7 +199,7 @@ class CrafterNode(Node):
                         else:
                             planks_to_add = max(0, min(4*plank_amount, math.ceil(remaining_fuel/1.5)))
                             remaining_fuel -= 1.5*planks_to_add
-                            count_dictionary[plank] += planks_to_add
+                            count_dictionary[plank] += int(planks_to_add)
                             break
             else:
                 return {list(self.fuel_hierarchy.keys())[0]: -math.ceil(remaining_fuel/8)}
@@ -218,7 +216,7 @@ class CrafterNode(Node):
         rclpy.spin_until_future_complete(self,future)
         return future.result().success
     
-    def refill_furnace(self, furnace_pos: Pose, itemID : int, count :int) -> bool:
+    def refill_furnace(self, furnace_pos: Pose, itemID : int, count: int) -> bool:
         input = Item(); input.id = itemID; input.count = count
         furnace = self.check_furnace(furnace_pos)
         output_furnace = Furnace()
@@ -245,13 +243,21 @@ class CrafterNode(Node):
     def look_at_block(self, block: PoseStamped):
         self.look_at_block_publisher.publish(block)
 
-    def place_block(self,itemID: int, position: Pose, face_vector = (0,1,0)) -> Pose:
+    def place_block(self,itemID: int, position: Pose, face_vector = (0,1,0)) -> bool:
         item = Item(); item.id = itemID; item.count = 1
         request = PlaceBlock.Request()
-        request.block_pose.position = position
+        request.block = BlockPose()
+        request.block.face_vector = face_vector
         request.block.block_pose.position = position
         request.block.block = item
-        # FULLFØR DENNE FUNKSJONEN
+
+        while not self.place_block_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().warn('Waiting for service (Plasser Blokk)')
+        future = self.place_block_client.call_async(request)
+        rclpy.spin_until_future_complete(self,future)
+        return future.result()
+        
+
 
 
     def get_bot_pos(self) -> PoseStamped:
@@ -261,7 +267,6 @@ class CrafterNode(Node):
         future = self.get_position_client.call_async(request)
         rclpy.spin_until_future_complete(self, future)
         return future.result()
-
 
     def find_blocks(self, blockid: int, count: int, max_distance=16) -> List[Pose]:
         self.get_logger().info('Find blocks')
@@ -286,8 +291,6 @@ class CrafterNode(Node):
             return Pose()
         assert self.craft_item(itemID, 1, crafting_requires_table)
         self.ensure_block(blockID,itemID,crafting_requires_table)
-            
-
 
     def craft_item(self,itemID: int, count: int, use_crafting_table: bool = True) -> bool:
         crafting_table_pose = self.find_blocks(self.CT_BLOCKID,1)
@@ -351,10 +354,7 @@ class CrafterNode(Node):
     def test_fuel_optimization(self):
         logitems = self.get_item_stock(self.logs)
         self.get_logger().error(f"{logitems}")
-        
-
         fuel_goal = 64
-        
         while True:
             self.get_logger().info("Printing dictionary:")
             self.get_logger().info(f"{self.optimize_fuel(fuel_goal)}")
